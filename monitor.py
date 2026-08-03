@@ -40,14 +40,3 @@ def check_stock():
         open("stock.txt","w").write(current)
 
 check_stock()
-
-# 测试用：强制发一条测试消息
-import requests
-import os
-
-token = os.getenv("BOT_TOKEN")
-chat_id = os.getenv("CHAT_ID")
-
-url = f"https://api.telegram.org/bot{token}/sendMessage"
-res = requests.post(url, json={"chat_id": chat_id, "text": "测试消息：Bot 连通正常！"})
-print("Telegram 返回状态:", res.status_code, res.text)
