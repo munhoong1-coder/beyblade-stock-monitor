@@ -40,3 +40,6 @@ def check_stock():
         open("stock.txt","w").write(current)
 
 check_stock()
+print("脚本开始运行，准备抓取网页...")
+print("找到库存，准备发送 Telegram 消息...")
+print("目前无货，跳过发送。")
