@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
 
-# 17 个重点关注商品及其对应网址
+# 17 个重点关注商品
 VIP_ITEMS = {
     "BX-34": "https://kelabgasingbeyblade.my/products/bx-34-cobalt-dragoon-2-60c",
     "BX-45": "https://kelabgasingbeyblade.my/products/bx-45-booster-samurai-calibur-6-70m",
@@ -26,6 +26,13 @@ VIP_ITEMS = {
     "UX-15": "https://kelabgasingbeyblade.my/products/ux-15-shark-scale-deck-set",
     "UX-17": "https://kelabgasingbeyblade.my/products/ux-17-meteor-dragoon-3-70j"
 }
+
+# 监控的 3 个分类页面
+CATEGORY_URLS = [
+    "https://kelabgasingbeyblade.my/beyblade-x?category_id=1&page=1",
+    "https://kelabgasingbeyblade.my/beyblade-x?category_id=1&page=2",
+    "https://kelabgasingbeyblade.my/beyblade-x?category_id=1&page=3"
+]
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -52,55 +59,93 @@ def send_telegram_msg(message):
     except Exception as e:
         print(f"❌ 发送异常: {e}")
 
-def check_stock_exact(url):
-    """通过页面核心元素精准判断有货/缺货"""
+def check_vip_stock(url):
+    """精准检测重点商品单页状态"""
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
         if res.status_code != 200:
-            print(f"⚠️ 网页打不开 [HTTP {res.status_code}]: {url}")
             return False, "未知商品"
 
         soup = BeautifulSoup(res.text, "html.parser")
-        
-        # 1. 抓取商品标题
         title_tag = soup.find("h1") or soup.find("title")
         title = title_tag.get_text().strip() if title_tag else url
 
-        # 2. 核心特征过滤：判断是否缺货
-        page_html_lower = res.text.lower()
-        
-        # 查找购买按钮（EasyStore 常见的购买/购物车按钮标识）
+        # 检查购物车按钮与售罄关键字
+        page_text = res.text.lower()
         cart_button = soup.find("button", {"name": "add"}) or soup.find("button", class_=lambda c: c and "add-to-cart" in c)
         
-        # 检查页面或按钮上是否有 Sold Out 关键字
         is_sold_out = False
         if cart_button:
             button_text = cart_button.get_text().lower()
             if "sold out" in button_text or "out of stock" in button_text or "disabled" in cart_button.attrs:
                 is_sold_out = True
         else:
-            # 如果压根没有购物车按钮，或者包含明显缺货文本
-            if "sold out" in page_html_lower or "out of stock" in page_html_lower or "售罄" in page_html_lower:
+            if "sold out" in page_text or "out of stock" in page_text or "售罄" in page_text:
                 is_sold_out = True
 
         return not is_sold_out, title
-
-    except Exception as e:
-        print(f"❌ 解析异常 [{url}]: {e}")
+    except Exception:
         return False, "解析失败"
 
+def check_category_pages():
+    """扫描分类页上的所有商品"""
+    print("\n🔍 --- 开始扫描 3 个分类页的其他商品 ---")
+    other_in_stock = []
+    
+    for page_url in CATEGORY_URLS:
+        try:
+            res = requests.get(page_url, headers=HEADERS, timeout=10)
+            if res.status_code != 200:
+                continue
+
+            soup = BeautifulSoup(res.text, "html.parser")
+            # 找到页面上所有的商品卡片/容器
+            items = soup.find_all("div", class_=lambda c: c and ("product" in c or "grid" in c or "item" in c))
+            
+            for item in items:
+                item_text = item.get_text().lower()
+                # 排除缺货商品
+                if "sold out" in item_text or "out of stock" in item_text or "售罄" in item_text:
+                    continue
+
+                link = item.find("a", href=lambda h: h and "/products/" in h)
+                if not link:
+                    continue
+
+                href = link["href"]
+                full_url = href if href.startswith("http") else f"https://kelabgasingbeyblade.my{href}"
+                
+                # 如果这个商品属于 17 个重点型号之一，则忽略（因为重点型号由 VIP 逻辑单独汇报）
+                if any(v_url in full_url for v_url in VIP_ITEMS.values()):
+                    continue
+
+                title = link.get_text().strip()
+                if len(title) > 3 and "quick" not in title.lower():
+                    other_in_stock.append({"title": title, "url": full_url})
+        except Exception as e:
+            print(f"⚠️ 分类页扫描异常: {e}")
+
+    return other_in_stock
+
 def main():
-    print("🚀 开始逐个检测 17 个重点商品的真实网页状态...")
+    print("🚀 开始进行综合库存检测...")
     vip_hits = []
 
+    # 1. 检测 17 个重点商品
+    print("🔍 --- 正在检测 17 个重点型号 ---")
     for code, url in VIP_ITEMS.items():
-        is_in_stock, title = check_stock_exact(url)
-        
+        is_in_stock, title = check_vip_stock(url)
         if is_in_stock:
-            print(f"🔥 [检测到有货!] {code} -> {title}")
+            print(f"🔥 [重点有货!] {code} -> {title}")
             vip_hits.append({"code": code, "title": title, "url": url})
         else:
             print(f"🔴 [缺货] {code}")
+
+    # 2. 检测分类页其他商品
+    general_hits = check_category_pages()
+
+    # 3. 组装并发送 Telegram 通知
+    messages = []
 
     if vip_hits:
         msg = "🚨<b>【重点关注型号返货/有货！】</b>\n\n"
@@ -108,9 +153,29 @@ def main():
             msg += f"📦 <b>{item['code']}</b>\n"
             msg += f"📝 {item['title']}\n"
             msg += f"🔗 <a href='{item['url']}'>点击直接购买</a>\n\n"
-        send_telegram_msg(msg)
+        messages.append(msg)
+
+    if general_hits:
+        # 去重
+        seen = set()
+        unique_general = []
+        for g in general_hits:
+            if g['url'] not in seen:
+                seen.add(g['url'])
+                unique_general.append(g)
+
+        if unique_general:
+            msg = "📢<b>【分类页发现其他补货商品】</b>\n\n"
+            for item in unique_general[:6]:  # 单次最多展示前 6 个
+                msg += f"✨ {item['title']}\n"
+                msg += f"🔗 <a href='{item['url']}'>点击查看</a>\n\n"
+            messages.append(msg)
+
+    if messages:
+        for m in messages:
+            send_telegram_msg(m)
     else:
-        print("\n✅ 检测完成，目前 17 个重点商品均显示缺货。")
+        print("\n✅ 全盘检测完成，当前重点型号与分类页均无新补货。")
 
 if __name__ == "__main__":
     main()
