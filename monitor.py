@@ -16,6 +16,7 @@ VIP_ITEMS = {
     "CX-01": "https://kelabgasingbeyblade.my/products/cx-01-dran-brave-s6-60v",
     "CX-11": "https://kelabgasingbeyblade.my/products/cx-11-emperor-might-deck-set",
     "CX-12": "https://kelabgasingbeyblade.my/products/cx-12-phoenix-flare-z9-80ww",
+    "CX-13": "https://kelabgasingbeyblade.my/products/cx-13-bahamutblitz-bk1-50i",
     "CX-14": "https://kelabgasingbeyblade.my/products/cx-14-knightfortress-gv8-70un",
     "CX-18": "https://kelabgasingbeyblade.my/products/cx-18-brachio-whip-select",
     "UX-01": "https://kelabgasingbeyblade.my/products/ux-01-dran-buster-1-60a",
