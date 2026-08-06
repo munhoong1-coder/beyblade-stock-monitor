@@ -2,15 +2,23 @@ name: Beyblade Monitor
 
 on:
   schedule:
-    # 设为每 5 分钟运行一次 (GitHub 免费版的极限速度)
+    # 每 5 分钟自动在后台运行一次
     - cron: "*/5 * * * *"
+  
+  # 支持在 GitHub 手动点按钮触发运行
   workflow_dispatch:
 
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    # 开启写权限，允许自动更新并提交 stock_state.json
+    permissions:
+      contents: write
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -19,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          pip install requests beautifulsoup4
 
       - name: Run monitor
         env:
@@ -27,7 +35,6 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python monitor.py
 
-      # 关键步骤：把每次检测的状态存下来，这样系统才知道哪个商品是“刚刚补货”
       - name: Commit state
         run: |
           git config --global user.name 'github-actions[bot]'
