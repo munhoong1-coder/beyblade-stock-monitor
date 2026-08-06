@@ -2,24 +2,36 @@ name: Beyblade Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
-
+    # 设为每 5 分钟运行一次 (GitHub 免费版的极限速度)
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
   check:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Install
-      run: |
-        pip install -r requirements.txt
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Run monitor
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        CHAT_ID: ${{ secrets.CHAT_ID }}
+      - name: Install dependencies
+        run: |
+          pip install requests
 
-      run: python monitor.py
+      - name: Run monitor
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python monitor.py
+
+      # 关键步骤：把每次检测的状态存下来，这样系统才知道哪个商品是“刚刚补货”
+      - name: Commit state
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add stock_state.json
+          git commit -m "Update stock state" || exit 0
+          git push
