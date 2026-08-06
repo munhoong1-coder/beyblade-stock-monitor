@@ -8,6 +8,7 @@ CHAT_ID = os.getenv("CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
 
 # 17 个重点关注商品
 VIP_ITEMS = {
+    "BX-01": "https://www.kelabgasingbeyblade.my/products/bx-01-dran-sword-3-60f",
     "BX-34": "https://kelabgasingbeyblade.my/products/bx-34-cobalt-dragoon-2-60c",
     "BX-45": "https://kelabgasingbeyblade.my/products/bx-45-booster-samurai-calibur-6-70m",
     "BX-49": "https://kelabgasingbeyblade.my/products/bx-49-dran-strike-4-50ff",
